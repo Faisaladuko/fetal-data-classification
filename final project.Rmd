@@ -1,0 +1,329 @@
+---
+title: "Final Project"
+author: "Zelia Amonebaafe Abdul-Mumin, Faisal Wahabu, Abraham-Junior Abbey and Richard Kafui Anatsui"
+date: "4/26/2021"
+output: word_document
+---
+## Project Topic: Assessing the fetal health to prevent child and maternal mortality
+
+## Introduction
+This data was acquired from the Kaggle website(https://www.kaggle.com/andrewmvd/fetal-health-classification). The multiple preventable deaths of newborns and children under 5 years old is due to low-resource settings. Countries from around the globe aim to solve this problem. This would help solve many Sustainable Development Goals and thereby save the lives of countless children and their mothers. 
+
+To enable healthcare professionals to effectively mitigate this problem, technologies such as Cardiotocograms(CTGs) are used to access the health of the fetus. This device generates data from multiple examinations and classifies the health status into three categories which are normal, suspect and pathological.
+
+
+## Data Cleaning
+```{r message=FALSE, warning=FALSE}
+setwd("C:/Users/Owner/Documents/Ashesi Stuff/Semester 2/Data Science/") #working directory
+fetalData = read.csv("fetal_health.csv", header = T)
+
+fetalData=fetalData[,c(1,2,3,4,5,7,8,22)] 
+attach(fetalData)
+fetalData = na.omit(fetalData)
+head(fetalData)
+library(pander)
+pander(summary(fetalData))
+str(fetalData)
+
+```
+
+For the data cleaning process, we picked 7 predictor variables which are baseline value, accelerations, fetal movements, uterine contractions, light decelerations, prolongued decelerations, abnormal short term variability. These predictor variables are relevant to our study. We also used fetal health as our categorical response variable which has three levels (1=normal, 2=suspect, 3=pathological).
+
+## Exploratory data analysis using scatterpolot matrix
+```{r message=FALSE, warning=FALSE}
+fetalData = na.omit(fetalData)
+fetalData$fetal_health = as.factor(fetalData$fetal_health)
+library(GGally)
+ggpairs(fetalData, mapping = ggplot2::aes(color = fetal_health))
+
+```
+
+From the boxplots in the scatterplot matrix above, the following observations were made.
+For the baseline value, the suspect class of fetal health is the highest. 
+For the accelerations, the normal class of fetal health is the highest. 
+For the fetal movement, all classes of fetal health are the same level. 
+For the uterine contractions, the normal class of fetal health is the highest. 
+For the light decelerations, the pathological class of fetal health is the highest. 
+For the prolonged decelerations, the pathological class of fetal health is the highest. 
+For the abnormal short term variability, the pathological class of fetal health is the highest. 
+Also, among all the categories of fetal health, the normal class of fetal health is the highest.
+
+From the distribution graphs in the scatterplot matrix above, apart from baseline value, all other predictors are not symmetric and as a result the data would need to be transformed.
+
+Observations from the scatterplot show that apart from fetal movement, all other predictors are strongly correlated.
+
+## Data Transformation
+```{r message=FALSE, warning=FALSE}
+library(pander)
+library(alr4)
+power_transform = powerTransform(fetalData[,-c(8)]+1)
+pander(summary(power_transform))
+
+```
+
+Due to the extremely small rounded powers from transforming the numeric predictor variables, we did not proceed with the data transformation process because they produced NaN and Inf values in the data. 
+
+
+
+## Dividing Data into Training and Test Data
+```{r}
+set.seed(10)
+train = sample(1:nrow(fetalData),size = 0.7*nrow(fetalData))
+trainingData = fetalData[train,]#split data into training data
+dim(trainingData)#dimension
+head(trainingData)
+testData = fetalData[-train, ]# split data into test data
+dim(testData)#dimension
+```
+
+To train appropriate machine learning models for our data, we randomly splitted 70% of the data into training data and the remaining 30% of the data into test data to evaluate the prediction accuracy of these models.
+
+
+## Multinomial Regression
+```{r}
+library(pander)
+library(nnet)
+trainingData$fetal_health = relevel(trainingData$fetal_health, ref = "1") #reference category
+multinom.fit <- multinom(fetal_health~., data = trainingData, trace=FALSE)
+multinom.fit
+pander(summary(multinom.fit)$coefficients)
+
+```
+
+The coefficients from the multinomial function are the logit coefficients relative to the reference category which is normal class of fetal health. Here are the logit equations from the model on the training data.
+
+
+$$\textbf{Eqn1:}$$
+$$log(\frac{P|fetalhealth=2|}{P|fetalhealth=3|}) 
+= -15.24 + 0.09 \text{baseline.value} -716.1 \text{accelerations} +11.4  \text{fetal_movement} -193.7  \text{uterine_contractions} -202.8  \text{light_decelerations} + 56.4 \text{prolongued_decelerations} + 0.056 \text{abnormal_short_term_variability}$$
+$$\textbf{Eqn2:} $$
+$$log(\frac{P|fetalhealth=3|}{P|fetalhealth=2|}) 
+= -5.827 -0.021  \text{baseline.value} -803.5  \text{accelerations} +10.7  \text{fetal_movement} -248.3  \text{uterine_contractions} +77.99  \text{light_decelerations} + 1862 \text{prolongued_decelerations} + 0.125 \text{abnormal_short_term_variability}$$
+#Acuracy of multinomial Regression
+```{r}
+table(Observed = testData$fetal_health, Predicted = predict(multinom.fit, newdata = testData) )#confusion matrix
+mean(predict(multinom.fit, newdata = testData)==testData$fetal_health)*100 #prediction accuracy
+```
+
+From the confusion matrix, these were the following observations.
+Out of 524 fetus scans for normal fetal health, our model is correctly telling us that 481 fetus scans have a normal fetal health status. Out of 80 fetus scans for suspect fetal health, our model is correctly telling us that 46 fetus scans have a suspect fetal health. Out of 34 fetus scans for pathological fetal health, our model is correctly telling us that 30 fetus scans have a pathological fetal health.
+
+On the other hand, out of 524 fetus scans for normal fetal health, our model is wrongly telling us that 43 fetus scans have a normal fetal health status. Out of 80 fetus scans for suspect fetal health, our model is wrongly telling us that 34 fetus scans have a suspect fetal health. Out of 34 fetus scans for pathological fetal health, our model is wrongly telling us that 4 fetus scans have a pathological fetal health.
+
+
+The 87% prediction accuracy on the test set for the model is quite good.
+
+Now, we want to determine the significant variables in our model by performing variable selection using AIC and BIC logistic regression.
+This will help us determine which variables would be important and what the accuracy would be for those variables.
+
+
+## BIC
+```{r message=TRUE, warning=FALSE}
+trainingData$fetal_health=as.numeric(as.factor(trainingData$fetal_health))
+testData$fetal_health=as.numeric(as.factor(testData$fetal_health))
+library(bestglm);
+library(leaps)
+pander(bestglm(trainingData, IC = "BIC"))
+
+
+```
+
+From the BIC selection, only 5 predictor variables were selected as significant to the model. They are baseline value, accelerations, uterine contractions, prolongued decelerations and abnormal short term variability.
+
+
+## AIC
+```{r message=FALSE,warning=FALSE}
+pander(bestglm(trainingData, IC = "AIC"))
+```
+
+Also from the AIC selection, only 5 predictor variables were selected as significant to the model. They are baseline value, accelerations, uterine contractions, prolongued decelerations and abnormal short term variability.
+
+## Accuracy of BIC Selection
+
+To test prediction accuracy using the variables selected by the BIC, we used a multinom function.
+```{r}
+#excluding fetal movement and light decelerations from the data
+fitBIC <- multinom(fetal_health~., data = trainingData[, -c(3,5) ], trace=FALSE , k=log(nrow(fetal_health)))
+mult.prob.predicted1= predict(fitBIC, testData, type="prob")
+mult.prob.predicted1[1:5]#print the first 5  predicted probabilities
+fHPred3 =rep(0, nrow(testData))
+
+fHPred3[mult.prob.predicted1>0.5]=1
+table(Observed = testData$fetal_health, Predicted = predict(fitBIC, newdata = testData) )
+mean(predict(fitBIC, newdata = testData)==testData$fetal_health)*100 #prediction accuracy
+```
+From the confusion matrix for BIC, these were the following observations.
+Out of 525 fetus scans for normal fetal health, our model is correctly telling us that 480 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is correctly telling us that 45 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is correctly telling us that 27 fetus scans have a pathological fetal health.
+
+On the other hand, out of 525 fetus scans for normal fetal health, our model is wrongly telling us that 45 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is wrongly telling us that 36 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is wrongly telling us that 5 fetus scans have a pathological fetal health.
+
+
+The 87% prediction accuracy on the test set for the model is quite good.
+
+## Accuracy of AIC Selection
+
+To test prediction accuracy using the variables selected by the BIC, we used a multinom function.
+```{r}
+#excluding fetal movement and light decelerations from the data
+fitAIC <- multinom(fetal_health~., data = trainingData[, -c(3,5) ], trace=FALSE)
+mult.prob.predicted2= predict(fitAIC, testData, type="prob")
+mult.prob.predicted2[1:5]#print the first 5  predicted probabilities
+fHPred4 =rep(0, nrow(testData))
+
+fHPred4[mult.prob.predicted2>0.5]=1
+table(Observed = testData$fetal_health, Predicted = predict(fitAIC, newdata = testData) )
+mean(predict(fitAIC, newdata = testData)==testData$fetal_health)*100 #prediction accuracy
+
+
+
+```
+
+Just like the BIC, from the confusion matrix for AIC, these were the following observations.
+Out of 525 fetus scans for normal fetal health, our model is correctly telling us that 480 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is correctly telling us that 45 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is correctly telling us that 27 fetus scans have a pathological fetal health.
+
+On the other hand, out of 525 fetus scans for normal fetal health, our model is wrongly telling us that 45 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is wrongly telling us that 36 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is wrongly telling us that 5 fetus scans have a pathological fetal health.
+
+
+The 87% prediction accuracy on the test set for the model is quite good.
+
+
+## Classification Tree Model
+
+```{r message=FALSE, warning=FALSE}
+trainingData$fetal_health = as.factor(trainingData$fetal_health)
+head(trainingData)
+library(rpart);library(rpart.plot)# Enhanced tree plots
+Tree1=rpart(trainingData$fetal_health~., data =trainingData[,1:7])
+rpart.plot(Tree1,type=2, extra=100, branch.lty=5,
+box.palette="RdYlGn")
+
+```
+
+For the original unpruned tree, the only excluded variable from the model was fetal movement. So we decided to further prune it. 
+
+## Accuracy of Classification Tree Model
+
+```{r}
+print(Tree1$cptable) #cp table
+
+cp = min(Tree1$cptable[5,])#the least cross-validated error(xerror)
+cp
+
+#pruning the tree
+pruned.tree1 <- prune(Tree1, cp = cp)
+
+rpart.plot(pruned.tree1,type=2, branch.lty=5,box.palette="RdYlGn")
+
+predictedClass= predict(pruned.tree1, newdata= testData, type = "class")
+table(predicted=predictedClass, Observed= testData[,"fetal_health"]) #confusion matrix
+
+mean(predictedClass==testData$fetal_health)*100 #prediction accuracy
+
+```
+The pruned tree has further excluded two additional variables which are accelerations and light decelerations.
+
+From the confusion matrix for classification tree model, these were the following observations.
+Out of 504 fetus scans for normal fetal health, our model is correctly telling us that 499 fetus scans have a normal fetal health status. Out of 85 fetus scans for suspect fetal health, our model is correctly telling us that 50 fetus scans have a suspect fetal health. Out of 49 fetus scans for pathological fetal health, our model is correctly telling us that 23 fetus scans have a pathological fetal health.
+
+On the other hand, out of 504 fetus scans for normal fetal health, our model is wrongly telling us that 5 fetus scans have a normal fetal health status. Out of 85 fetus scans for suspect fetal health, our model is wrongly telling us that 51 fetus scans have a suspect fetal health. Out of 49 fetus scans for pathological fetal health, our model is wrongly telling us that 26 fetus scans have a pathological fetal health.
+
+
+The 87% prediction accuracy on the test set for the model is quite good.
+
+## KNN
+```{r message=FALSE, warning=FALSE}
+set.seed(10)
+library(class)
+train.x = (fetalData[train, -c(8)]) # selecting predictors in training data
+test.x = (fetalData[-train, -c(8)]) # selecting predictors in test data
+train.fetal = (fetalData[train, 8]) # selecting response in training data
+test.fetal = (fetalData[-train, 8]) # selecting response in test data
+knn.predicted=knn(train.x,test.x, train.fetal, k=1)
+table(Observed = test.fetal, Predicted = knn.predicted) # confusion matrix
+mean(knn.predicted==testData$fetal_health)*100 #prediction accuracy
+```
+
+From the confusion matrix for the KNN model, these were the following observations.
+Out of 506 fetus scans for normal fetal health, our model is correctly telling us that 471 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is correctly telling us that 51 fetus scans have a suspect fetal health. Out of 51 fetus scans for pathological fetal health, our model is correctly telling us that 34 fetus scans have a pathological fetal health.
+
+On the other hand, out of 506 fetus scans for normal fetal health, our model is wrongly telling us that 35 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is wrongly telling us that 30 fetus scans have a suspect fetal health. Out of 51 fetus scans for pathological fetal health, our model is wrongly telling us that 17 fetus scans have a pathological fetal health.
+
+
+The 87% prediction accuracy on the test set for the model is quite good.
+
+## Random Forest Model
+```{r message=FALSE, warning=FALSE}
+set.seed(2021)
+library(randomForest)
+trainingData$fetal_health=as.numeric(as.factor(trainingData$fetal_health))
+testData$fetal_health=as.numeric(as.factor(testData$fetal_health))
+#since we solving a classification problem, the default value for m is sqrt(p)
+#p=7 since we have 7 predictors
+#Therefor m= sqrt(7)= 3(approx.) which means 3 predictors are considered for each split.
+RandomForest = randomForest(trainingData$fetal_health~., data= trainingData, mtry =3, ntree= 150, importance=T)
+importance(RandomForest) # variable importance
+varImpPlot(RandomForest) # plot of variable importance
+
+RandomForestPredicted= predict(RandomForest, newdata = testData)
+sqrt(mean(RandomForestPredicted-testData[,8])^2)
+
+
+```
+
+Based on the %IncMSE and IncNodePurity in the variable importance table, abnormal short term variability is the most important to the model followed by prolongued decelerations, then accelerations, then uterine contractions, then baseline value. And then fetal movement and light deceleration are considered the least important variables to the model.
+
+The average prediction error of random forest classification tree for fetal health based on the seven predictors is 0.0096.
+
+The 99% prediction accuracy on the test set for the random forest model is quite good.
+
+## Final Model
+
+From all the prediction accuracies of the models, Random Forest model has the highest prediction accuracy of 99%. Besides, the BIC and AIC variable selection picked 5 predictor variables (baseline.value, accelerations, uterine contractions, prolongued decelerations and abnormal short term variability) that correspond to that of the Random forest model. Therefore , the final model is the  Random Forest model.
+
+
+## Conclusions
+Now, the multinomial regression model below with these 5 predictor variables generates two equations for our final model using the normal class of fetal health as the reference category.
+
+```{r}
+fit2 <- multinom(fetal_health~.-fetal_movement-light_decelerations, data = trainingData, trace=FALSE)
+fit2
+pander(summary(fit2)$coefficients)
+```
+
+
+$$\textbf{Eqn1:} $$
+$$log(\frac{P|fetalhealth=2|}{P|fetalhealth=3|}) 
+= -15.52 +  \text{baseline.value} -626.4  \text{accelerations} -427.1  \text{uterine_contractions} + 57.24 \text{prolongued_decelerations} + 0.045 \text{abnormal_short_term_variability}$$
+
+
+$$\textbf{Eqn2:}$$
+$$log(\frac{P|fetalhealth=3|}{P|fetalhealth=2|})
+= -5.417 -0.014  \text{baseline.value} -610.3  \text{accelerations} -224.3  \text{uterine_contractions} + 1962 \text{prolongued_decelerations} + 0.107 \text{abnormal_short_term_variability}$$
+
+
+
+
+Based on the first equation from the final model, the following conclusions can be made. 
+
+*  A one-unit increase in the baseline fetal heart rate is associated with a single increase in the relative log odds of having a suspect status of fetal health versus having a pathological status of fetal health.
+
+* A one-unit increase in the number of accelerations per second is associated with a 626.4 decrease in the relative log odds of having a suspect status of fetal health versus having a pathological status of fetal health.
+
+* A one-unit increase in the number of uterine contractions per second is associated with a 427.1 decrease in the relative log odds of having a suspect status of fetal health versus having a pathological status of fetal health.
+
+* A one-unit increase in the number of prolongued decelerations per second is associated with a 57.24 increase in the relative log odds of having a suspect status of fetal health versus having a pathological status of fetal health.
+
+* A one-unit increase in the percentage of time with abnormal short term variability is associated with a 0.045 increase in the relative log odds of having a suspect status of fetal health versus having a pathological status of fetal health.
+
+
+Also, based on the second equation from the final model, the following conclusions can be made. 
+
+* A one-unit increase in the baseline fetal heart rate is associated with a 0.014 decrease in the relative log odds of having a pathological status of fetal health versus having a suspect status of fetal health.
+
+* A one-unit increase in the number of accelerations per second is associated with a 626.4 610.3 decrease in the relative log odds of having a pathological status of fetal health versus having a suspect status of fetal health.
+
+* A one-unit increase in the number of uterine contractions per second is associated with a 224.3 decrease in the relative log odds of having a pathological status of fetal health versus having a suspect status of fetal health.
+
+* A one-unit increase in the number of prolongued decelerations per second is associated with a 1962 increase in the relative log odds of having a pathological status of fetal health versus having a suspect status of fetal health.
+
+* A one-unit increase in the percentage of time with abnormal short term variability is associated with a 0.107 increase in the relative log odds of having a pathological status of fetal health versus having a suspect status of fetal health.
