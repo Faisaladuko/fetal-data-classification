@@ -1,8 +1,8 @@
 ---
 title: "Final Project"
-author: "Zelia Amonebaafe Abdul-Mumin, Faisal Wahabu, Abraham-Junior Abbey and Richard Kafui Anatsui"
+author: "Faisal Wahabu"
 date: "4/26/2021"
-output: word_document
+
 ---
 ## Project Topic: Assessing the fetal health to prevent child and maternal mortality
 
@@ -52,16 +52,6 @@ From the distribution graphs in the scatterplot matrix above, apart from baselin
 
 Observations from the scatterplot show that apart from fetal movement, all other predictors are strongly correlated.
 
-## Data Transformation
-```{r message=FALSE, warning=FALSE}
-library(pander)
-library(alr4)
-power_transform = powerTransform(fetalData[,-c(8)]+1)
-pander(summary(power_transform))
-
-```
-
-Due to the extremely small rounded powers from transforming the numeric predictor variables, we did not proceed with the data transformation process because they produced NaN and Inf values in the data. 
 
 
 
@@ -109,79 +99,6 @@ From the confusion matrix, these were the following observations.
 Out of 524 fetus scans for normal fetal health, our model is correctly telling us that 481 fetus scans have a normal fetal health status. Out of 80 fetus scans for suspect fetal health, our model is correctly telling us that 46 fetus scans have a suspect fetal health. Out of 34 fetus scans for pathological fetal health, our model is correctly telling us that 30 fetus scans have a pathological fetal health.
 
 On the other hand, out of 524 fetus scans for normal fetal health, our model is wrongly telling us that 43 fetus scans have a normal fetal health status. Out of 80 fetus scans for suspect fetal health, our model is wrongly telling us that 34 fetus scans have a suspect fetal health. Out of 34 fetus scans for pathological fetal health, our model is wrongly telling us that 4 fetus scans have a pathological fetal health.
-
-
-The 87% prediction accuracy on the test set for the model is quite good.
-
-Now, we want to determine the significant variables in our model by performing variable selection using AIC and BIC logistic regression.
-This will help us determine which variables would be important and what the accuracy would be for those variables.
-
-
-## BIC
-```{r message=TRUE, warning=FALSE}
-trainingData$fetal_health=as.numeric(as.factor(trainingData$fetal_health))
-testData$fetal_health=as.numeric(as.factor(testData$fetal_health))
-library(bestglm);
-library(leaps)
-pander(bestglm(trainingData, IC = "BIC"))
-
-
-```
-
-From the BIC selection, only 5 predictor variables were selected as significant to the model. They are baseline value, accelerations, uterine contractions, prolongued decelerations and abnormal short term variability.
-
-
-## AIC
-```{r message=FALSE,warning=FALSE}
-pander(bestglm(trainingData, IC = "AIC"))
-```
-
-Also from the AIC selection, only 5 predictor variables were selected as significant to the model. They are baseline value, accelerations, uterine contractions, prolongued decelerations and abnormal short term variability.
-
-## Accuracy of BIC Selection
-
-To test prediction accuracy using the variables selected by the BIC, we used a multinom function.
-```{r}
-#excluding fetal movement and light decelerations from the data
-fitBIC <- multinom(fetal_health~., data = trainingData[, -c(3,5) ], trace=FALSE , k=log(nrow(fetal_health)))
-mult.prob.predicted1= predict(fitBIC, testData, type="prob")
-mult.prob.predicted1[1:5]#print the first 5  predicted probabilities
-fHPred3 =rep(0, nrow(testData))
-
-fHPred3[mult.prob.predicted1>0.5]=1
-table(Observed = testData$fetal_health, Predicted = predict(fitBIC, newdata = testData) )
-mean(predict(fitBIC, newdata = testData)==testData$fetal_health)*100 #prediction accuracy
-```
-From the confusion matrix for BIC, these were the following observations.
-Out of 525 fetus scans for normal fetal health, our model is correctly telling us that 480 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is correctly telling us that 45 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is correctly telling us that 27 fetus scans have a pathological fetal health.
-
-On the other hand, out of 525 fetus scans for normal fetal health, our model is wrongly telling us that 45 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is wrongly telling us that 36 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is wrongly telling us that 5 fetus scans have a pathological fetal health.
-
-
-The 87% prediction accuracy on the test set for the model is quite good.
-
-## Accuracy of AIC Selection
-
-To test prediction accuracy using the variables selected by the BIC, we used a multinom function.
-```{r}
-#excluding fetal movement and light decelerations from the data
-fitAIC <- multinom(fetal_health~., data = trainingData[, -c(3,5) ], trace=FALSE)
-mult.prob.predicted2= predict(fitAIC, testData, type="prob")
-mult.prob.predicted2[1:5]#print the first 5  predicted probabilities
-fHPred4 =rep(0, nrow(testData))
-
-fHPred4[mult.prob.predicted2>0.5]=1
-table(Observed = testData$fetal_health, Predicted = predict(fitAIC, newdata = testData) )
-mean(predict(fitAIC, newdata = testData)==testData$fetal_health)*100 #prediction accuracy
-
-
-
-```
-
-Just like the BIC, from the confusion matrix for AIC, these were the following observations.
-Out of 525 fetus scans for normal fetal health, our model is correctly telling us that 480 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is correctly telling us that 45 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is correctly telling us that 27 fetus scans have a pathological fetal health.
-
-On the other hand, out of 525 fetus scans for normal fetal health, our model is wrongly telling us that 45 fetus scans have a normal fetal health status. Out of 81 fetus scans for suspect fetal health, our model is wrongly telling us that 36 fetus scans have a suspect fetal health. Out of 32 fetus scans for pathological fetal health, our model is wrongly telling us that 5 fetus scans have a pathological fetal health.
 
 
 The 87% prediction accuracy on the test set for the model is quite good.
